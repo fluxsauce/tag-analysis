@@ -7,9 +7,14 @@
     </div>
 
     <div class="container">
-        {% if form.url.vars.errors|length %}
+        {% if (form.url.vars.errors|length) or (errors) %}
             <div class="alert alert-danger">
-                {{ form_errors(form.url) }}
+                {% if (form.url.vars.errors|length) %}
+                    {{ form_errors(form.url) }}
+                {% endif %}
+                {% if (errors) %}
+                    {{ errors }}
+                {% endif %}
             </div>
         {% else %}
             <div class="row">
