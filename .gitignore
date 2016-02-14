@@ -1,3 +1,4 @@
 vendor/
+!web/js/vendor
 .env
 .idea
