@@ -1,6 +1,11 @@
 <?php
 require('../vendor/autoload.php');
 
+use Silex\Provider\FormServiceProvider;
+use Silex\Application;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Validator\Constraints\Url;
+
 function comment($tag, $start = TRUE) {
   return '<!-- ' . ($start ? 'START' : 'END') . md5($tag) . ' -->';
 }
@@ -18,61 +23,107 @@ $app->register(new Silex\Provider\TwigServiceProvider(), array(
   'twig.path' => __DIR__ . '/views',
 ));
 
-// Web handlers.
-$app->get('/', function() use($app) {
-  $app['monolog']->addDebug('logging output.');
+// Register the form.
+$app->register(new FormServiceProvider());
 
-  $client = new GuzzleHttp\Client();
-  $res = $client->request('GET', 'http://fluxsauce.github.io/resume/');
-  if ($res->getStatusCode() != 200) {
+// Register form message rendering.
+$app->register(new Silex\Provider\TranslationServiceProvider(), array(
+  'translator.messages' => array(),
+));
 
+// Register form validation.
+$app->register(new Silex\Provider\ValidatorServiceProvider());
+
+// Web handler.
+$app->match('/', function (Request $request) use ($app) {
+  $data = array(
+    'url' => 'http://fluxsauce.github.io/resume/',
+  );
+  $form = $app['form.factory']->createBuilder('form', $data, array('csrf_protection' => FALSE))
+    ->add('url', 'url', array(
+      'constraints' => array(
+        new Url(),
+      ),
+      'attr' => array(
+        'size' => '50',
+      ),
+    ))
+    ->getForm();
+
+  if ($request->isMethod('POST')) {
+    $form->handleRequest($request);
   }
-  if ($res->getHeader('content-type')[0] !== '') {
-
+  else {
+    $form->bind($data);
   }
 
-  $html5 = new Masterminds\HTML5();
-  $qp = qp($html5->loadHTML($res->getBody()));
+  // Prepare to display.
+  $twig_variables = array(
+    'source' => '',
+    'tags' => array(),
+  );
 
-  $tags = array();
+  if ($form->isValid()) {
+    $data = $form->getData();
 
-  foreach ($qp->find('*') as $query) {
-    // Determine tag name.
-    $tag = $query->tag();
+    $app['monolog']->addDebug($data['url']);
 
-    // Initialize if it's never been seen before.
-    if (!isset($tags[$tag])) {
-      $tags[$tag] = 0;
+    $client = new GuzzleHttp\Client();
+    $res = $client->request('GET', $data['url']);
+
+    // Validate status.
+    if ($res->getStatusCode() != 200) {
+
     }
-    // Count the tag.
-    $tags[$tag]++;
 
-    // Surround the tag.
-    $query->before(comment($tag, TRUE));
-    $query->after(comment($tag, FALSE));
+    // Validate response.
+    if (substr($res->getHeader('content-type')[0], 0, 9) !== 'text/html') {
+
+    }
+
+    $html5 = new Masterminds\HTML5();
+    $qp = qp($html5->loadHTML($res->getBody()));
+
+    $tags = array();
+
+    foreach ($qp->find('*') as $query) {
+      // Determine tag name.
+      $tag = $query->tag();
+
+      // Initialize if it's never been seen before.
+      if (!isset($tags[$tag])) {
+        $tags[$tag] = 0;
+      }
+      // Count the tag.
+      $tags[$tag]++;
+
+      // Surround the tag.
+      $query->before(comment($tag, TRUE));
+      $query->after(comment($tag, FALSE));
+    }
+
+    $source = htmlspecialchars($qp->html());
+
+    foreach (array_keys($tags) as $tag) {
+      $comment_start = comment($tag, TRUE);
+      $source = str_replace(htmlspecialchars($comment_start), '<span class="tag_' . $tag . '">', $source);
+      $comment_end = comment($tag, FALSE);
+      $source = str_replace(htmlspecialchars($comment_end), '</span>', $source);
+    }
+
+    $twig_variables['source'] = $source;
+
+    // Sort by count.
+    arsort($tags);
+
+    foreach ($tags as $tag => $count) {
+      $twig_variables['tags'][] = array('name' => $tag, 'count' => $count);
+    }
   }
 
-  $wrapper = htmlspecialchars($qp->html());
+  $twig_variables['form'] = $form->createView();
 
-  foreach (array_keys($tags) as $tag) {
-    $comment_start = comment($tag, TRUE);
-    $wrapper = str_replace(htmlspecialchars($comment_start), '<span class="tag_' . $tag . '">', $wrapper);
-    $comment_end = comment($tag, FALSE);
-    $wrapper = str_replace(htmlspecialchars($comment_end), '</span>', $wrapper);
-  }
-
-  // Sort by count.
-  arsort($tags);
-  $twig_tags = array();
-
-  foreach ($tags as $tag => $count) {
-    $twig_tags[] = array('name' => $tag, 'count' => $count);
-  }
-
-  return $app['twig']->render('index.twig', array(
-    'source' => $wrapper,
-    'tags' => $twig_tags,
-  ));
+  return $app['twig']->render('index.twig', $twig_variables);
 });
 
 $app->run();
