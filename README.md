@@ -2,6 +2,14 @@
 
 The *Tag Analysis* utility analyzes a HTML document by URL in order to provide a tag count. Clicking a tag will highlight all instances of that tag.
 
+## Installation
+
+```bash
+composer install
+```
+
+The front controller is located in `/web`.
+
 ## Stack
 
 * [QueryPath](http://querypath.org/) - HTML DOM manipulation (avoiding use of regular expressions)
