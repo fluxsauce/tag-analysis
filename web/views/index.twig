@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="container">
+        <h1>Overview</h1>
+        <p>The <strong>Tag Analysis</strong> utility analyzes a HTML document by URL in order to provide a tag count. Clicking a tag will highlight all instances of that tag.</p>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-2">
+                <h2>Tags</h2>
+                <table id="analysis" class="table table-condensed table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for tag in tags %}
+                    <tr class="analysis_{{ tag.name }}">
+                        <td>{{ tag.name }}</td>
+                        <td>{{ tag.count }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-md-10">
+                <h2>Source</h2>
+                <pre><code id="source">{{ source | raw }}</code></pre>
+            </div>
+        </div>
+    </div>
+{% endblock %}

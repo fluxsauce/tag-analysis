@@ -1,0 +1,6 @@
+{
+  "name": "HTML Tag Analysis",
+  "description": "Analyzes HTML documents by URL, providing tag counts highlighted source.",
+  "repository": "https://github.com/fluxsauce/tag-analysis",
+  "addons": []
+}
