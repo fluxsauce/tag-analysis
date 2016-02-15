@@ -119,8 +119,9 @@ $app->match('/', function (Request $request) use ($app) {
 
     if (!$twig_variables['errors']) {
       // Load the document into parser.
-      $html5 = new Masterminds\HTML5();
-      $qp = qp($html5->loadHTML($response->getBody()));
+      $qp = @qp((string) $response->getBody(), NULL, array(
+        'ignore_parser_warnings' => TRUE,
+      ));
 
       // Prepare to count tags.
       $tags = array();
